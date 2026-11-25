@@ -153,7 +153,42 @@ pytest
 
 ---
 
-## 6. Deployment notes
+## 6. Deploy to Render (free)
+
+The repo includes everything Render needs: `render.yaml` (the Blueprint), `build.sh` (install → collectstatic → migrate → seed) and gunicorn.
+
+### Step 1 – Supabase Storage for photos (Render's free disk is wiped on every deploy)
+1. Supabase → **Storage** → **New bucket** → name it `media` and turn on **Public bucket**.
+2. Supabase → **Project Settings → Storage → S3 Connection** (or Storage → Settings → S3 access keys) → **New access key**. Copy the **Access key ID** and **Secret access key**. Note the **Region** shown there (e.g. `ap-south-1`).
+3. Your **project ref** is the random part of your project URL: `https://<project-ref>.supabase.co`.
+
+### Step 2 – Create the service
+1. Go to https://dashboard.render.com → **New → Blueprint** → connect GitHub → choose this repo.
+2. Render reads `render.yaml` and asks for the secret values:
+
+| Variable | Value |
+|---|---|
+| `DATABASE_URL` | Supabase **Session pooler** string (same as in your `.env`) |
+| `FIELD_ENCRYPTION_KEY` | **Exactly the same** key as in your `.env`, otherwise hidden details already in the database can't be decrypted |
+| `SUPABASE_PROJECT_REF` | e.g. `yotnbarwfuivsoecbwnu` |
+| `SUPABASE_S3_ACCESS_KEY_ID` / `SUPABASE_S3_SECRET_ACCESS_KEY` | From step 1 |
+| `DJANGO_SUPERUSER_USERNAME` / `_EMAIL` / `_PASSWORD` | Admin account to create (or leave empty) |
+
+If your region isn't `ap-south-1`, edit `SUPABASE_S3_REGION` after the service is created.
+
+3. Click **Apply**. The first build takes about 3–5 minutes. Your site will be at `https://claimback.onrender.com` (or similar).
+
+`SEED_DEMO=true` loads the demo users and sample items (only if the database has no items yet). **The demo password `demo1234!` is public in this README**, so before sharing the link widely, set `SEED_DEMO=false` and change those passwords in `/admin/`, or deactivate the demo users.
+
+### Step 3 – Nightly job (free, via GitHub Actions)
+Render cron jobs are paid, so `.github/workflows/nightly.yml` runs `run_nightly` every night at 02:00 IST from GitHub instead. In GitHub → repo **Settings → Secrets and variables → Actions → New repository secret**, add `DATABASE_URL`, `SECRET_KEY` (any long random value) and `FIELD_ENCRYPTION_KEY`. Test it from the **Actions** tab → *Nightly matching & ageing* → **Run workflow**.
+
+### Good to know
+- **The free tier sleeps after 15 minutes without visitors.** The first request then takes 30–60 seconds, so open the site a minute before a demo.
+- **Real emails:** set `EMAIL_HOST=smtp.gmail.com`, `EMAIL_HOST_USER`, and `EMAIL_HOST_PASSWORD` (a Gmail *App password*). Without these, emails are only printed in Render's logs, and claimants see handover codes in their in-app notifications.
+- **Every `git push` to the main branch redeploys automatically.**
+
+## 7. Deployment notes
 
 - Set `DEBUG=false`, a real `SECRET_KEY`, `FIELD_ENCRYPTION_KEY`, `ALLOWED_HOSTS`, and `CSRF_TRUSTED_ORIGINS` (e.g. `https://lostfound.example.edu`).
 - Run `python manage.py collectstatic`. WhiteNoise serves the static files.

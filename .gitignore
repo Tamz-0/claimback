@@ -7,3 +7,5 @@ media/
 staticfiles/
 .pytest_cache/
 *.sqlite3
+_to_delete/
+.vscode/

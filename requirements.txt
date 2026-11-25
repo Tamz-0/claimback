@@ -9,3 +9,6 @@ whitenoise>=6.7
 # testing
 pytest>=8.0
 pytest-django>=4.9
+# production
+gunicorn>=22.0
+django-storages[s3]>=1.14

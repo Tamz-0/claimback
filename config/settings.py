@@ -24,6 +24,12 @@ DEBUG = env_bool("DEBUG", True)
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if h.strip()]
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()]
 
+# Render sets this automatically (e.g. claimback.onrender.com)
+RENDER_EXTERNAL_HOSTNAME = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
+if RENDER_EXTERNAL_HOSTNAME:
+    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
+    CSRF_TRUSTED_ORIGINS.append(f"https://{RENDER_EXTERNAL_HOSTNAME}")
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -115,8 +121,20 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 15 * 1024 * 1024
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# --- Email (console in development: emails are printed in the terminal) ---
-EMAIL_BACKEND = os.environ.get("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+# --- Email ------------------------------------------------------------------
+# Development: emails are printed in the terminal. To send real email, set
+# EMAIL_HOST (e.g. smtp.gmail.com), EMAIL_HOST_USER and EMAIL_HOST_PASSWORD
+# (for Gmail use an "App password").
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "")
+if EMAIL_HOST:
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+    EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+    EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+    EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
+    EMAIL_TIMEOUT = 10
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "lostandfound@campus.local")
 
 # --- Cache (public board is cached) ---------------------------------------
@@ -165,11 +183,51 @@ LOGGING = {
     "root": {"handlers": ["console"], "level": "INFO"},
 }
 
+# --- File storage for photos ---------------------------------------------
+# Local folder by default. In production set the SUPABASE_S3_* variables to
+# store photos in Supabase Storage (Render's own disk is wiped on redeploy).
+SUPABASE_PROJECT_REF = os.environ.get("SUPABASE_PROJECT_REF", "")
+SUPABASE_S3_ACCESS_KEY_ID = os.environ.get("SUPABASE_S3_ACCESS_KEY_ID", "")
+SUPABASE_S3_SECRET_ACCESS_KEY = os.environ.get("SUPABASE_S3_SECRET_ACCESS_KEY", "")
+SUPABASE_S3_REGION = os.environ.get("SUPABASE_S3_REGION", "ap-south-1")
+SUPABASE_BUCKET = os.environ.get("SUPABASE_BUCKET", "media")
+USE_SUPABASE_STORAGE = bool(SUPABASE_PROJECT_REF and SUPABASE_S3_ACCESS_KEY_ID and SUPABASE_S3_SECRET_ACCESS_KEY)
+
+if USE_SUPABASE_STORAGE:
+    default_storage = {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "bucket_name": SUPABASE_BUCKET,
+            "endpoint_url": f"https://{SUPABASE_PROJECT_REF}.supabase.co/storage/v1/s3",
+            "region_name": SUPABASE_S3_REGION,
+            "access_key": SUPABASE_S3_ACCESS_KEY_ID,
+            "secret_key": SUPABASE_S3_SECRET_ACCESS_KEY,
+            "addressing_style": "path",
+            "signature_version": "s3v4",
+            "querystring_auth": False,   # bucket is public; file names are random UUIDs
+            "file_overwrite": False,
+            # Public URL of each file
+            "custom_domain": f"{SUPABASE_PROJECT_REF}.supabase.co/storage/v1/object/public/{SUPABASE_BUCKET}",
+        },
+    }
+else:
+    default_storage = {"BACKEND": "django.core.files.storage.FileSystemStorage"}
+
+STORAGES = {
+    "default": default_storage,
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage" if DEBUG
+        else "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+# Serve the local media folder through Django even with DEBUG off (demo only;
+# not needed when Supabase Storage is configured).
+SERVE_MEDIA = env_bool("SERVE_MEDIA", not USE_SUPABASE_STORAGE)
+
 if not DEBUG:
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-    STORAGES = {
-        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
-        "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
-    }
+    SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", False)  # Render already forces HTTPS
+    SECURE_HSTS_SECONDS = 3600
+    SECURE_CONTENT_TYPE_NOSNIFF = True

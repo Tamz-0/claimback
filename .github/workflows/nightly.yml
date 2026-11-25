@@ -1,0 +1,28 @@
+# Free replacement for a Render cron job: runs the nightly job against the
+# production database every day at 02:00 IST (20:30 UTC).
+# Add repository secrets: Settings -> Secrets and variables -> Actions:
+#   DATABASE_URL, SECRET_KEY, FIELD_ENCRYPTION_KEY
+name: Nightly matching & ageing
+on:
+  schedule:
+    - cron: "30 20 * * *"
+  workflow_dispatch: {}   # lets you run it manually from the Actions tab
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python manage.py run_nightly
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_SSL: "true"
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          FIELD_ENCRYPTION_KEY: ${{ secrets.FIELD_ENCRYPTION_KEY }}
+          DEBUG: "false"
