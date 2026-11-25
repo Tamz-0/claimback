@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Desk · {{ item.title }}{% endblock %}
+{% block content %}
+<a href="{% url 'dashboard:desk' %}" class="btn ghost small">← Desk</a>
+<div class="grid layout-side">
+  <div>
+    <div class="card">
+      <div class="row"><span class="pill {{ item.kind }}">{{ item.get_kind_display }}</span><span class="pill brand">{{ item.get_status_display }}</span></div>
+      <h1 style="margin-top:.5rem">{{ item.category.icon }} {{ item.title }}</h1>
+      {% if item.photos.all %}<div class="row">{% for p in item.photos.all %}<a href="{{ p.image.url }}"><img src="{{ p.thumbnail.url }}" style="width:110px;border-radius:10px" alt=""></a>{% endfor %}</div>{% endif %}
+      <p>{{ item.description }}</p>
+      <table>
+        <tr><th>Reported by</th><td>{{ item.reporter }} · {{ item.reporter.email }}</td></tr>
+        <tr><th>Where found</th><td>{{ item.location.full_name }}</td></tr>
+        <tr><th>When</th><td>{{ item.occurred_at|date:"d M Y, H:i" }}</td></tr>
+        <tr><th>Now held at</th><td>{{ current_location.full_name|default:"— not yet received —" }}</td></tr>
+        <tr><th>Retention</th><td>{{ item.category.retention_days }} days ({{ item.category.name }})</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Claims</h2>
+      {% for c in claims %}
+        <p><a href="{% url 'dashboard:desk_claim' c.pk %}">#{{ c.pk }} {{ c.claimant }}</a> – {{ c.get_status_display }}
+          {% if c.challenge %}<small>(verification: {{ c.challenge.get_status_display }}{% if c.challenge.best_score is not None %}, best {% widthratio c.challenge.best_score 1 100 %}%{% endif %})</small>{% endif %}</p>
+      {% empty %}<p class="muted">No claims yet.</p>{% endfor %}
+    </div>
+
+    {% if item.is_found and item.status != "returned" and item.status != "disposed" and item.status != "withdrawn" %}
+      <form method="post" class="card">{% csrf_token %}
+        <h2>{% if current_location %}Move to another custody point{% else %}Record intake{% endif %}</h2>
+        <div class="grid grid-3">{% for f in intake_form %}<div class="field"><label>{{ f.label }}</label>{{ f }}{{ f.errors }}</div>{% endfor %}</div>
+        <button class="btn" name="intake" value="1">Save custody record</button>
+      </form>
+    {% endif %}
+
+    {% if item.status == "disposal_queue" %}
+      <form method="post" enctype="multipart/form-data" class="card">{% csrf_token %}
+        <h2>Dispose of unclaimed item</h2>
+        <div class="grid grid-3">{% for f in disposal_form %}<div class="field"><label>{{ f.label }}</label>{{ f }}{{ f.errors }}</div>{% endfor %}</div>
+        <div class="field"><label>Proof photo (optional)</label><input type="file" name="proof_photo" accept="image/*" capture="environment"></div>
+        <button class="btn danger" name="dispose" value="1">Record disposal</button>
+      </form>
+    {% endif %}
+  </div>
+
+  <aside>
+    {% if private_details %}
+      <div class="vault"><h3>🔒 Hidden details</h3>
+        {% for d in private_details %}<p><strong>{{ d.question }}</strong><br>{{ d.answer }}</p>{% endfor %}
+      </div>
+    {% endif %}
+    <div class="card" style="margin-top:1rem">
+      <h3>Custody chain</h3>
+      {% if chain_ok %}<p class="pill ok">✔ Chain intact (hash-verified)</p>{% else %}<p class="pill danger">✖ Chain broken at record #{{ chain_bad.pk }}</p>{% endif %}
+      <ul class="timeline" style="margin-top:.75rem">
+        {% for r in custody %}
+          <li><strong>{{ r.get_action_display }}</strong><br>
+            <small>{{ r.created_at|date:"d M Y, H:i" }} · {{ r.location.full_name|default:"" }}</small><br>
+            <small>{{ r.from_party }} → {{ r.to_party }}</small>{% if r.note %}<br><small>{{ r.note }}</small>{% endif %}
+            <div class="hash">#{{ r.hash|slice:":16" }}…</div></li>
+        {% empty %}<li class="muted">No custody records yet.</li>{% endfor %}
+      </ul>
+    </div>
+  </aside>
+</div>
+{% endblock %}

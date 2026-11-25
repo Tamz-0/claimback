@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Your claim{% endblock %}
+{% block content %}
+<div class="narrow">
+  <a href="{% url 'dashboard:home' %}?mine=1" class="btn ghost small">← My items</a>
+  <div class="card">
+    <div class="row spread"><span class="pill brand">{{ claim.get_status_display }}</span><small>Claim #{{ claim.pk }}</small></div>
+    <h1 style="margin-top:.5rem">{{ item.category_icon }} {{ item.title }}</h1>
+    <small>📍 {{ item.location }} · 📅 {{ item.date }}</small>
+  </div>
+
+  {% if questions %}
+    <form method="post" class="card">{% csrf_token %}
+      <h2>Prove it's yours</h2>
+      <p class="muted">Answer in your own words. Close answers count; you have {{ challenge.attempts_left }} attempt{{ challenge.attempts_left|pluralize }} left.</p>
+      {% if challenge.status == "failed" %}<p class="pill danger">Those answers didn't match. Please try again carefully.</p>{% endif %}
+      {% for pk, q in questions %}
+        <div class="field"><label for="answer_{{ pk }}">{{ q }}</label>
+          <input type="text" name="answer_{{ pk }}" id="answer_{{ pk }}" maxlength="300" autocomplete="off" required></div>
+      {% endfor %}
+      <button class="btn block">Submit answers</button>
+    </form>
+  {% elif claim.status == "review" %}
+    <div class="card"><h2>Under review</h2><p>Security is checking your answers. You'll be notified of the decision.</p></div>
+  {% elif claim.status == "verified" %}
+    <div class="card"><h2>✅ Verified</h2><p>Your answers matched. Security will approve the claim and schedule a handover.</p></div>
+  {% elif claim.status == "approved" %}
+    <div class="card">
+      <h2>✅ Approved</h2>
+      {% if handover and handover.status == "scheduled" %}
+        <p>Collect your item at <strong>{{ handover.location.full_name }}</strong> on <strong>{{ handover.scheduled_for|date:"D d M, H:i" }}</strong>.</p>
+        <p>Bring your campus ID and the <strong>6-digit handover code</strong> we sent you (see <a href="{% url 'audit:notifications' %}">notifications</a> / email).</p>
+      {% else %}
+        <p>Security will schedule a handover shortly.</p>
+      {% endif %}
+    </div>
+  {% elif claim.status == "handed_over" %}
+    <div class="card"><h2>🎉 Returned</h2><p>The item was handed over to you on {{ handover.completed_at|date:"d M Y, H:i" }}.</p></div>
+  {% elif claim.status == "rejected" %}
+    <div class="card"><h2>Claim closed</h2><p>{{ claim.decision_note|default:"This claim was not accepted." }}</p><p class="muted">If you believe this is a mistake, visit the security desk with proof of ownership.</p></div>
+  {% elif claim.status == "withdrawn" %}
+    <div class="card"><h2>Withdrawn</h2></div>
+  {% endif %}
+
+  {% if claim.status == "verifying" or claim.status == "review" or claim.status == "verified" %}
+    <form method="post" action="{% url 'claims:withdraw' claim.pk %}">{% csrf_token %}<button class="btn secondary block">Withdraw claim</button></form>
+  {% endif %}
+</div>
+{% endblock %}

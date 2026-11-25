@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Security desk{% endblock %}
+{% block content %}
+<div class="row spread">
+  <h1>🛡️ Security desk</h1>
+  <div class="row">
+    <a class="btn small secondary" href="{% url 'dashboard:desk_matches' %}">Match review</a>
+    <a class="btn small secondary" href="{% url 'dashboard:desk_audit' %}">Audit log</a>
+    <a class="btn small secondary" href="{% url 'dashboard:home' %}?mine=1">My own items</a>
+  </div>
+</div>
+
+<div class="grid grid-4" style="margin:1rem 0">
+  {% for loc, n in inventory %}<div class="stat"><div class="num">{{ n }}</div><div class="lbl">in custody · {{ loc.full_name }}</div></div>{% endfor %}
+  <div class="stat"><div class="num">{{ action_count }}</div><div class="lbl">claims needing action</div></div>
+  <div class="stat"><div class="num">{{ disposal|length }}</div><div class="lbl">awaiting disposal</div></div>
+</div>
+
+<div class="grid grid-2">
+  <div class="card">
+    <h2>📥 Intake – reported, not yet handed in ({{ intake|length }})</h2>
+    {% for i in intake %}<p><a href="{% url 'dashboard:desk_item' i.pk %}">{{ i.category.icon }} {{ i.title }}</a><br><small>{{ i.location.full_name }} · {{ i.created_at|timesince }} ago</small></p>
+    {% empty %}<p class="muted">Nothing waiting.</p>{% endfor %}
+  </div>
+
+  <div class="card">
+    <h2>🔍 Verification review ({{ review|length }})</h2>
+    <p class="muted" style="font-size:.85rem">Borderline answers, or items without hidden details (verify in person).</p>
+    {% for c in review %}<p><a href="{% url 'dashboard:desk_claim' c.pk %}">{{ c.item.title }}</a> – {{ c.claimant }}</p>
+    {% empty %}<p class="muted">None.</p>{% endfor %}
+  </div>
+
+  <div class="card">
+    <h2>✅ Verified – approve claim ({{ verified|length }})</h2>
+    {% for c in verified %}<p><a href="{% url 'dashboard:desk_claim' c.pk %}">{{ c.item.title }}</a> – {{ c.claimant }}{% if c.item.claims.count > 1 %} <span class="pill warn">competing claims</span>{% endif %}</p>
+    {% empty %}<p class="muted">None.</p>{% endfor %}
+  </div>
+
+  <div class="card">
+    <h2>📅 Approved – schedule handover ({{ approved|length }})</h2>
+    {% for c in approved %}<p><a href="{% url 'dashboard:desk_claim' c.pk %}">{{ c.item.title }}</a> – {{ c.claimant }}</p>
+    {% empty %}<p class="muted">None.</p>{% endfor %}
+  </div>
+
+  <div class="card">
+    <h2>🤝 Scheduled handovers ({{ handovers|length }})</h2>
+    {% for h in handovers %}<p><a href="{% url 'dashboard:desk_handover' h.pk %}">{{ h.item.title }}</a> → {{ h.claim.claimant }}<br><small>{{ h.scheduled_for|date:"D d M, H:i" }} · {{ h.location.name }}</small></p>
+    {% empty %}<p class="muted">None.</p>{% endfor %}
+  </div>
+
+  <div class="card">
+    <h2>⏳ Ageing &amp; disposal</h2>
+    {% for i in ageing %}<p><a href="{% url 'dashboard:desk_item' i.pk %}">{{ i.title }}</a> <span class="pill warn">ageing</span></p>{% endfor %}
+    {% for i in disposal %}<p><a href="{% url 'dashboard:desk_item' i.pk %}">{{ i.title }}</a> <span class="pill danger">dispose</span></p>{% endfor %}
+    {% if not ageing and not disposal %}<p class="muted">Nothing ageing.</p>{% endif %}
+  </div>
+</div>
+{% endblock %}

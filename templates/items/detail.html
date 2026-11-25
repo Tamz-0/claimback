@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}{{ item.title }} · My report{% endblock %}
+{% block content %}
+<div class="grid layout-side">
+  <div>
+    <div class="card">
+      <div class="row spread">
+        <div class="row"><span class="pill {{ item.kind }}">{{ item.get_kind_display }}</span><span class="pill brand">{{ item.get_status_display }}</span></div>
+        <a href="{% url 'board:detail' item.pk %}" class="btn ghost small">View public listing ↗</a>
+      </div>
+      <h1 style="margin-top:.6rem">{{ item.category.icon }} {{ item.title }}</h1>
+      {% if item.photos.all %}<div class="row" style="margin:.5rem 0">{% for p in item.photos.all %}<img src="{{ p.thumbnail.url }}" alt="" style="width:110px;border-radius:10px">{% endfor %}</div>{% endif %}
+      {% if item.description %}<p>{{ item.description|linebreaksbr }}</p>{% endif %}
+      <table>
+        <tr><th>Where</th><td>{{ item.location.full_name }}</td></tr>
+        <tr><th>When</th><td>{{ item.occurred_at|date:"d M Y, H:i" }}</td></tr>
+        {% for k, v in item.attributes.items %}<tr><th>{{ k|capfirst }}</th><td>{{ v }}</td></tr>{% endfor %}
+        {% if is_security_view %}<tr><th>Reporter</th><td>{{ item.reporter }} ({{ item.reporter.email }})</td></tr>{% endif %}
+      </table>
+      {% if is_security_view %}<p style="margin-top:.75rem"><a class="btn small" href="{% url 'dashboard:desk_item' item.pk %}">Open in security desk</a></p>{% endif %}
+    </div>
+
+    {% if item.kind == "lost" %}
+      <div class="card">
+        <h2>Possible matches</h2>
+        {% for row in matches %}
+          <div class="row spread" style="border-bottom:1px solid var(--line);padding:.6rem 0">
+            <div>
+              <div class="row"><strong>{{ row.item.category_icon }} {{ row.item.title }}</strong><span class="pill">{{ row.item.status }}</span></div>
+              <small>📍 {{ row.item.location }} · 📅 {{ row.item.date }} · match <span class="score">{% widthratio row.m.score 1 100 %}%</span></small>
+            </div>
+            <div class="row">
+              {% if row.item.claimable %}<a class="btn small" href="{% url 'claims:create' row.item.id %}?lost={{ item.pk }}">It's mine – claim</a>{% endif %}
+              <form method="post" action="{% url 'items:dismiss_match' row.m.pk %}">{% csrf_token %}<button class="btn small secondary">Not mine</button></form>
+            </div>
+          </div>
+        {% empty %}
+          <p class="muted">No matches yet. We re-check every night and when new found items are reported, and will notify you.</p>
+        {% endfor %}
+      </div>
+      {% if my_claims %}<div class="card"><h2>Claims linked to this report</h2>{% for c in my_claims %}<p><a href="{{ c.get_absolute_url }}">{{ c.item.title }}</a> – {{ c.get_status_display }}</p>{% endfor %}</div>{% endif %}
+    {% else %}
+      <div class="card">
+        <h2>Claims</h2>
+        <p>{{ claims_summary.open }} open claim{{ claims_summary.open|pluralize }} ({{ claims_summary.total }} total). Security verifies every claimant before handover.</p>
+        {% if item.status == "open" %}<p class="pill warn">Please hand this item in to a security desk.</p>{% endif %}
+      </div>
+      {% if is_security_view and matches %}
+        <div class="card"><h2>Matching lost reports</h2>
+          {% for row in matches %}<p>{{ row.item.title }} – <span class="score">{% widthratio row.m.score 1 100 %}%</span></p>{% endfor %}
+        </div>
+      {% endif %}
+    {% endif %}
+  </div>
+
+  <aside>
+    {% if private_details %}
+      <div class="vault">
+        <h3>🔒 Hidden details</h3>
+        <p class="muted" style="font-size:.85rem">Only you and security can see these. Claimants must answer them.</p>
+        {% for d in private_details %}<p><strong>{{ d.question }}</strong><br>{{ d.answer }}</p>{% endfor %}
+      </div>
+    {% endif %}
+
+    {% if custody %}
+      <div class="card" style="margin-top:1rem">
+        <h3>Custody</h3>
+        <ul class="timeline">{% for r in custody %}<li><strong>{{ r.get_action_display }}</strong><br><small>{{ r.location.full_name|default:"" }} · {{ r.created_at|date:"d M, H:i" }}</small></li>{% endfor %}</ul>
+      </div>
+    {% endif %}
+
+    {% if item.status == "open" %}
+      <form method="post" action="{% url 'items:withdraw' item.pk %}" style="margin-top:1rem">{% csrf_token %}
+        <button class="btn secondary block">{% if item.kind == "lost" %}I found it myself – close report{% else %}Withdraw report{% endif %}</button>
+      </form>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

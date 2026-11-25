@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <h1>Lost something on campus?</h1>
+  <p>Browse items handed in to security, or report what you lost or found. It takes under a minute.</p>
+  <div class="hero-actions">
+    <a class="btn lost" href="{% url 'items:report' 'lost' %}">❓ I lost something</a>
+    <a class="btn found" href="{% url 'items:report' 'found' %}">🙌 I found something</a>
+  </div>
+</section>
+
+<form class="filters" method="get" hx-get="{% url 'board:list' %}" hx-target="#board" hx-select="#board" hx-swap="outerHTML" hx-trigger="change, keyup changed delay:400ms from:input[name=q]" hx-push-url="true">
+  <input class="search" type="search" name="q" value="{{ filters.q }}" placeholder="Search: 'black wallet', 'airpods'…" aria-label="Search">
+  <select name="kind" aria-label="Type">
+    <option value="">Lost &amp; found</option>
+    <option value="found" {% if filters.kind == "found" %}selected{% endif %}>Found items</option>
+    <option value="lost" {% if filters.kind == "lost" %}selected{% endif %}>Lost reports</option>
+  </select>
+  <select name="category" aria-label="Category">
+    <option value="">All categories</option>
+    {% for c in categories %}<option value="{{ c.slug }}" {% if filters.category == c.slug %}selected{% endif %}>{{ c.icon }} {{ c.name }}</option>{% endfor %}
+  </select>
+  <select name="location" aria-label="Building">
+    <option value="">Anywhere on campus</option>
+    {% for b in buildings %}<option value="{{ b.pk }}" {% if filters.location == b.pk|stringformat:"s" %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
+  </select>
+  <noscript><button class="btn">Filter</button></noscript>
+</form>
+
+<div id="board">
+  <p class="muted">{{ page.count }} item{{ page.count|pluralize }}</p>
+  <div class="items-grid">
+    {% include "board/_cards.html" %}
+  </div>
+  {% if not page.items %}<div class="empty">Nothing matches yet. Try fewer words, or <a href="{% url 'items:report' 'lost' %}">report your lost item</a> and we'll notify you when it turns up.</div>{% endif %}
+</div>
+{% endblock %}

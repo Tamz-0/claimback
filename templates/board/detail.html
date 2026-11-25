@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{# `item` is a public dict from board.public.to_public() — never a model instance #}
+{% block title %}{{ item.title }} · Lost & Found{% endblock %}
+{% block content %}
+<div class="narrow">
+  <a href="{% url 'board:list' %}" class="btn ghost small">← Back to board</a>
+  <div class="card">
+    {% if item.photo %}<img src="{{ item.photo }}" alt="" style="border-radius:10px;margin-bottom:1rem">{% endif %}
+    <div class="row"><span class="pill {{ item.kind }}">{{ item.kind|title }}</span><span class="pill">{{ item.status }}</span></div>
+    <h1 style="margin-top:.5rem">{{ item.category_icon }} {{ item.title }}</h1>
+    {% if item.description %}<p>{{ item.description|linebreaksbr }}</p>{% endif %}
+    <table>
+      <tr><th>Category</th><td>{{ item.category }}</td></tr>
+      <tr><th>Where</th><td>{{ item.location }}</td></tr>
+      <tr><th>When</th><td>{{ item.date }}</td></tr>
+      {% for k, v in item.attributes.items %}<tr><th>{{ k|capfirst }}</th><td>{{ v }}</td></tr>{% endfor %}
+    </table>
+  </div>
+
+  {% if is_own_report %}
+    <a class="btn block secondary" href="{% url 'items:detail' item.id %}">Manage your report</a>
+  {% elif item.kind == "found" and item.claimable %}
+    <div class="card">
+      <h2>Is this yours?</h2>
+      <p class="muted">You'll be asked a few questions about details only the owner would know. These details are never shown publicly.</p>
+      <a class="btn block" href="{% url 'claims:create' item.id %}">This is mine – start a claim</a>
+    </div>
+  {% elif item.kind == "lost" %}
+    <div class="card">
+      <h2>Found this?</h2>
+      <p class="muted">Report it as found and hand it in to a security desk. We'll match it with this report.</p>
+      <a class="btn block found" href="{% url 'items:report' 'found' %}">I found it</a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

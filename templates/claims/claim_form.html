@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Claim {{ item.title }}{% endblock %}
+{% block content %}
+<div class="narrow">
+  <h1>Claim “{{ item.title }}”</h1>
+  <div class="card">
+    <p><strong>How it works</strong></p>
+    <ol style="padding-left:1.2rem;margin:0">
+      <li>Answer a few questions about details only the owner would know.</li>
+      <li>Security reviews your claim.</li>
+      <li>Collect the item at the security desk with your ID and the code we send you.</li>
+    </ol>
+  </div>
+  <form method="post" class="card">{% csrf_token %}
+    {% for field in form %}
+      <div class="field"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>
+    {% endfor %}
+    <button class="btn block">Continue to verification</button>
+  </form>
+  <p class="muted" style="font-size:.85rem">False claims are logged and reviewed by campus security.</p>
+</div>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Handover · {{ handover.item.title }}{% endblock %}
+{% block content %}
+<div class="narrow">
+  <a href="{% url 'dashboard:desk_claim' handover.claim_id %}" class="btn ghost small">← Claim</a>
+  <div class="card">
+    <span class="pill brand">{{ handover.get_status_display }}</span>
+    <h1 style="margin-top:.5rem">Hand over “{{ handover.item.title }}”</h1>
+    <p>To <strong>{{ handover.claim.claimant }}</strong> ({{ handover.claim.claimant.campus_id|default:"no campus ID on file" }}) at {{ handover.location.full_name }}.</p>
+  </div>
+
+  {% if handover.status == "scheduled" %}
+  <form method="post" enctype="multipart/form-data" class="card" id="handover-form">{% csrf_token %}
+    <div class="field"><label for="id_checked">ID document checked</label>
+      <input type="text" name="id_checked" id="id_checked" placeholder="e.g. Student ID card" maxlength="80"></div>
+
+    <div class="field"><label for="otp">Claimant's 6-digit handover code</label>
+      <input type="text" name="otp" id="otp" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="off" style="font-size:1.4rem;letter-spacing:.3em;max-width:12rem">
+      <span class="help">Wrong attempts: {{ handover.otp_attempts }}. If the claimant has no code, capture a signature instead.</span></div>
+
+    <details style="margin-bottom:1rem"><summary>No code? Capture signature</summary>
+      <canvas id="sigpad" class="sigpad"></canvas>
+      <input type="hidden" name="signature" id="signature">
+      <button type="button" class="btn small secondary" id="sig-clear" style="margin-top:.4rem">Clear</button>
+    </details>
+
+    <div class="field"><label>Proof photo of handover (required)</label>
+      <input type="file" name="proof_photo" accept="image/*" capture="environment" required></div>
+
+    <button class="btn block">Complete handover</button>
+  </form>
+  <form method="post">{% csrf_token %}<button class="btn secondary block" name="action" value="cancel">Cancel handover</button></form>
+  {% else %}
+    <div class="card"><p>Completed {{ handover.completed_at|date:"d M Y, H:i" }} by {{ handover.supervised_by }} via {{ handover.get_method_display }}.</p>
+      {% if handover.proof_photo %}<img src="{{ handover.proof_photo.url }}" alt="Proof photo" style="border-radius:10px">{% endif %}</div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const c = document.getElementById("sigpad"); if (!c) return;
+  const ctx = c.getContext("2d"); let drawing = false, drawn = false;
+  function size() { const r = c.getBoundingClientRect(); c.width = r.width; c.height = r.height; ctx.lineWidth = 2.5; ctx.lineCap = "round"; }
+  document.querySelector("details").addEventListener("toggle", size); window.addEventListener("resize", size);
+  function pos(e) { const r = c.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+  c.addEventListener("pointerdown", (e) => { drawing = true; ctx.beginPath(); ctx.moveTo(...pos(e)); });
+  c.addEventListener("pointermove", (e) => { if (!drawing) return; ctx.lineTo(...pos(e)); ctx.stroke(); drawn = true; });
+  window.addEventListener("pointerup", () => (drawing = false));
+  document.getElementById("sig-clear").onclick = () => { ctx.clearRect(0, 0, c.width, c.height); drawn = false; };
+  document.getElementById("handover-form").addEventListener("submit", () => {
+    document.getElementById("signature").value = drawn ? c.toDataURL("image/png") : "";
+  });
+})();
+</script>
+{% endblock %}

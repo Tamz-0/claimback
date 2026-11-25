@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<div class="row spread"><h1>📊 Reports</h1>
+  <form method="get" class="row">
+    <input type="date" name="from" value="{{ start }}" aria-label="From" style="width:auto">
+    <input type="date" name="to" value="{{ end }}" aria-label="To" style="width:auto">
+    <button class="btn small">Apply</button>
+    <a class="btn small secondary" href="?from={{ start }}&to={{ end }}&format=csv">Download CSV</a>
+  </form>
+</div>
+
+<div class="grid grid-4" style="margin:1rem 0">
+  <div class="stat"><div class="num">{{ d.return_rate }}%</div><div class="lbl">Return rate ({{ d.returned }} of {{ d.found_total }} found items returned)</div></div>
+  <div class="stat"><div class="num">{% if d.median_hours_to_return is not None %}{{ d.median_hours_to_return }} h{% else %}—{% endif %}</div><div class="lbl">Median time to return</div></div>
+  <div class="stat"><div class="num">{{ d.unclaimed }}</div><div class="lbl">Unclaimed found items ({{ d.disposed }} disposed)</div></div>
+  <div class="stat"><div class="num">{{ d.verification_failure_rate }}%</div><div class="lbl">Verification failure rate ({{ d.verification_failed }}/{{ d.verification_attempts }} attempts) – a signal for false claims</div></div>
+</div>
+
+<div class="grid grid-2">
+  <div class="card"><h2>Loss hotspots (by building)</h2>
+    {% for name, n in d.hotspots %}<div style="margin-bottom:.5rem"><div class="row spread"><span>{{ name }}</span><strong>{{ n }}</strong></div><div class="bar"><span style="width:{% widthratio n max_hot 100 %}%"></span></div></div>
+    {% empty %}<p class="muted">No lost reports yet.</p>{% endfor %}
+  </div>
+  <div class="card"><h2>Category distribution</h2>
+    {% for c in d.categories %}<div style="margin-bottom:.5rem"><div class="row spread"><span>{{ c.icon }} {{ c.name }}</span><strong>{{ c.n }}</strong></div><div class="bar"><span style="width:{% widthratio c.n max_cat 100 %}%"></span></div></div>{% endfor %}
+  </div>
+  <div class="card"><h2>When items are lost (hour of day)</h2>
+    <div class="hours">{% for h, n in d.by_hour %}<div title="{{ h }}:00 – {{ n }}" style="height:{% widthratio n max_hour 100 %}%"></div>{% endfor %}</div>
+    <div class="row spread"><small>00:00</small><small>12:00</small><small>23:00</small></div>
+    <p style="margin-top:.75rem">{% for name, n in d.by_weekday %}<span class="pill">{{ name }} {{ n }}</span> {% endfor %}</p>
+  </div>
+  <div class="card"><h2>Disposal</h2>
+    {% for x in d.disposals %}<p>{{ x.label }}: <strong>{{ x.n }}</strong></p>{% empty %}<p class="muted">No disposals recorded.</p>{% endfor %}
+    <p class="muted">Lost reports: {{ d.lost_total }} · resolved: {{ d.lost_resolved }}</p>
+  </div>
+</div>
+{% endblock %}

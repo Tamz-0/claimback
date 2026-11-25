@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Match review{% endblock %}
+{% block content %}
+<a href="{% url 'dashboard:desk' %}" class="btn ghost small">← Desk</a>
+<h1>Match review</h1>
+<p class="muted">Automatic suggestions (text, attributes, location, time). Confirming one notifies the owner.</p>
+<div class="card table-wrap">
+<table>
+  <tr><th>Score</th><th>Lost report</th><th>Found item</th><th>Why</th><th></th></tr>
+  {% for m in matches %}
+  <tr>
+    <td class="score">{% widthratio m.score 1 100 %}%</td>
+    <td><a href="{% url 'items:detail' m.lost.pk %}">{{ m.lost.title }}</a><br><small>{{ m.lost.location.full_name }} · {{ m.lost.occurred_at|date:"d M H:i" }}</small></td>
+    <td><a href="{% url 'dashboard:desk_item' m.found.pk %}">{{ m.found.title }}</a><br><small>{{ m.found.location.full_name }} · {{ m.found.occurred_at|date:"d M H:i" }}</small></td>
+    <td><small>{% for k, v in m.breakdown.items %}{{ k }} {% widthratio v 1 100 %}%{% if not forloop.last %}, {% endif %}{% endfor %}</small></td>
+    <td><form method="post" action="{% url 'dashboard:desk_match_action' m.pk %}" class="row">{% csrf_token %}
+      <button class="btn small" name="action" value="confirm">Confirm</button>
+      <button class="btn small secondary" name="action" value="dismiss">Dismiss</button></form></td>
+  </tr>
+  {% empty %}<tr><td colspan="5" class="muted">No open suggestions.</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}

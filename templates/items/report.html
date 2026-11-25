@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Report {{ kind }} item{% endblock %}
+{% block content %}
+<div class="narrow">
+  <h1>{% if kind == "lost" %}❓ Report a lost item{% else %}🙌 Report a found item{% endif %}</h1>
+  <p class="muted">{% if kind == "lost" %}We'll match it against items handed in and notify you.{% else %}Thank you! After submitting, please hand the item to the nearest security desk.{% endif %}</p>
+
+  <form method="post" enctype="multipart/form-data" id="report-form" novalidate>{% csrf_token %}
+    {% if form.non_field_errors %}<ul class="messages"><li class="error">{% for e in form.non_field_errors %}{{ e }} {% endfor %}</li></ul>{% endif %}
+
+    <div class="card">
+      <div class="field">
+        <label>Photo <span class="muted">(optional)</span></label>
+        <div class="photo-drop">
+          <label class="btn secondary" style="margin:0">📷 Take / choose photo
+            <input type="file" name="photos" accept="image/*" capture="environment" multiple class="sr-only" id="photo-input">
+          </label>
+          <div id="photo-previews" class="row"></div>
+        </div>
+        <span class="help">Location data (GPS) is removed from photos automatically before they are stored.</span>
+      </div>
+
+      <div class="field">
+        <label for="id_title">What is it?</label>{{ form.title }}{{ form.title.errors }}
+      </div>
+      <div class="field">
+        <label for="id_category">Category</label>{{ form.category }}{{ form.category.errors }}
+      </div>
+      <div id="attr-fields" class="grid grid-2"></div>
+    </div>
+
+    <div class="card">
+      <label>Where?</label>
+      <div class="map-wrap" id="map"></div>
+      <div class="field" style="margin-top:.6rem">
+        <select id="area-select" aria-label="Area within building" style="display:none"></select>
+      </div>
+      <div class="field">
+        <label for="id_location" class="muted" style="font-weight:500">…or choose from the list</label>{{ form.location }}{{ form.location.errors }}
+      </div>
+      <div class="field">
+        <label for="id_occurred_at">When?</label>{{ form.occurred_at }}{{ form.occurred_at.errors }}
+      </div>
+    </div>
+
+    {% if kind == "found" %}
+    <div class="vault card">
+      <h3>🔒 Hidden details (never shown publicly)</h3>
+      <p class="muted" style="font-size:.9rem">Write down details only the real owner would know — a sticker, the lock-screen picture, what's inside. The claimant must answer these to get the item back. <strong>Don't put them in the public description.</strong></p>
+      {% for i, q, a in private_rows %}
+        <div class="private-row">
+          <input type="text" name="pq_{{ i }}" placeholder="Question, e.g. What sticker is on the back?" maxlength="300" value="{{ q }}" data-pq="{{ i }}">
+          <input type="text" name="pa_{{ i }}" placeholder="Answer, e.g. NASA logo" maxlength="300" value="{{ a }}" autocomplete="off">
+        </div>
+      {% endfor %}
+      <span class="help">At least 2 required. Tip: suggested questions appear when you pick a category.</span>
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="field"><label for="id_description">Public description <span class="muted">(optional)</span></label>{{ form.description }}</div>
+      <label class="check">{{ form.photo_public }} {{ form.photo_public.label }}</label>
+      {% if form.photo_public.help_text %}<span class="help">{{ form.photo_public.help_text }}</span>{% endif %}
+    </div>
+
+    <button class="btn block {{ kind }}" style="min-height:52px;font-size:1.05rem">Submit {{ kind }} report</button>
+  </form>
+</div>
+{{ category_data|json_script:"category-data" }}
+{{ location_data|json_script:"location-data" }}
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/report.js' %}" defer></script>{% endblock %}

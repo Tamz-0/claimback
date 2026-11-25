@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Audit log{% endblock %}
+{% block content %}
+<a href="{% url 'dashboard:desk' %}" class="btn ghost small">← Desk</a>
+<h1>Audit log</h1>
+<div class="card table-wrap"><table>
+  <tr><th>When</th><th>Who</th><th>Action</th><th>Target</th><th>Details</th></tr>
+  {% for e in entries %}<tr><td><small>{{ e.created_at|date:"d M H:i:s" }}</small></td><td>{{ e.actor|default:"system" }}</td><td><code>{{ e.action }}</code></td><td>{{ e.target_type }} #{{ e.target_id }}</td><td><small>{% for k, v in e.data.items %}{{ k }}={{ v }} {% endfor %}</small></td></tr>{% endfor %}
+</table></div>
+{% endblock %}

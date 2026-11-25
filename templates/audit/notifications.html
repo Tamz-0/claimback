@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+{% block content %}
+<div class="narrow">
+  <h1>Notifications</h1>
+  {% for n in notifications %}
+    <a href="{% url 'audit:open' n.pk %}" class="card" style="display:block;text-decoration:none;color:inherit;{% if not n.read %}border-left:4px solid var(--brand){% endif %}">
+      <div class="row spread"><span class="pill brand">{{ n.get_kind_display }}</span><small>{{ n.created_at|timesince }} ago</small></div>
+      <p style="margin:.5rem 0 0">{{ n.message }}</p>
+    </a>
+  {% empty %}
+    <div class="empty">No notifications yet.</div>
+  {% endfor %}
+</div>
+{% endblock %}

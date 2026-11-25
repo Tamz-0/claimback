@@ -1,0 +1,17 @@
+{# Receives only public dicts from board.public.to_public() #}
+{% for it in page.items %}
+  <a class="item-card" href="{% url 'board:detail' it.id %}">
+    <div class="item-thumb">{% if it.thumbnail %}<img src="{{ it.thumbnail }}" alt="" loading="lazy">{% else %}{{ it.category_icon|default:"📦" }}{% endif %}</div>
+    <div class="item-body">
+      <div class="row"><span class="pill {{ it.kind }}">{{ it.kind|title }}</span><span class="pill">{{ it.status }}</span></div>
+      <div class="item-title">{{ it.title }}</div>
+      <div class="item-meta">📍 {{ it.location }}</div>
+      <div class="item-meta">📅 {{ it.date }} · {{ it.category }}</div>
+    </div>
+  </a>
+{% endfor %}
+{% if page.has_next %}
+  <div class="loader" style="grid-column:1/-1"
+       hx-get="?{{ querystring }}{% if querystring %}&{% endif %}page={{ page.next }}"
+       hx-trigger="revealed" hx-swap="outerHTML">Loading more…</div>
+{% endif %}

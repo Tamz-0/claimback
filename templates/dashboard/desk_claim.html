@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Desk · Claim #{{ claim.pk }}{% endblock %}
+{% block content %}
+<a href="{% url 'dashboard:desk' %}" class="btn ghost small">← Desk</a>
+<div class="grid layout-side">
+  <div>
+    <div class="card">
+      <div class="row spread"><span class="pill brand">{{ claim.get_status_display }}</span><small>Claim #{{ claim.pk }} · {{ claim.created_at|date:"d M H:i" }}</small></div>
+      <h1 style="margin-top:.5rem">{{ claim.item.title }}</h1>
+      <p><a href="{% url 'dashboard:desk_item' claim.item.pk %}">Open item →</a></p>
+      <table>
+        <tr><th>Claimant</th><td>{{ claim.claimant }} · {{ claim.claimant.get_affiliation_display }} {{ claim.claimant.campus_id }}<br><small>{{ claim.claimant.email }} {{ claim.claimant.phone }}</small></td></tr>
+        <tr><th>Statement</th><td>{{ claim.statement|default:"—" }}</td></tr>
+        {% if claim.lost_report %}<tr><th>Lost report</th><td>{{ claim.lost_report.title }} ({{ claim.lost_report.location.full_name }}, {{ claim.lost_report.occurred_at|date:"d M H:i" }})</td></tr>{% endif %}
+        {% if claim.decision_note %}<tr><th>Decision</th><td>{{ claim.decision_note }} {% if claim.decided_by %}– {{ claim.decided_by }}{% endif %}</td></tr>{% endif %}
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Verification</h2>
+      {% if challenge %}
+        <p>Status: <strong>{{ challenge.get_status_display }}</strong> · attempts {{ challenge.attempts }}/{{ challenge.max_attempts }}{% if challenge.best_score is not None %} · best score <span class="score">{% widthratio challenge.best_score 1 100 %}%</span>{% endif %}</p>
+        {% for a in attempts %}
+          <details {% if forloop.last %}open{% endif %}><summary>Attempt {{ forloop.counter }} – {% widthratio a.score 1 100 %}% ({{ a.created_at|date:"d M H:i" }})</summary>
+            <div class="table-wrap"><table>
+              <tr><th>Question</th><th>Expected (hidden)</th><th>Claimant said</th><th>Score</th></tr>
+              {% for r in a.rows %}<tr><td>{{ r.question }}</td><td>{{ r.expected }}</td><td>{{ r.given|default:"—" }}</td><td class="score">{% widthratio r.score 1 100 %}%</td></tr>{% endfor %}
+            </table></div>
+          </details>
+        {% endfor %}
+      {% else %}
+        <p class="pill warn">No hidden details were recorded for this item – verify ownership in person.</p>
+      {% endif %}
+    </div>
+
+    <form method="post" class="card">{% csrf_token %}
+      <h2>Decision</h2>
+      <div class="field"><label>Note</label><input type="text" name="note" maxlength="300" placeholder="Optional note for the record"></div>
+      <div class="row">
+        {% if claim.status == "review" %}
+          <button class="btn" name="action" value="review_pass">Verification OK</button>
+          <button class="btn danger" name="action" value="review_fail">Verification failed</button>
+        {% endif %}
+        {% if claim.status == "verified" %}<button class="btn" name="action" value="approve">Approve claim</button>{% endif %}
+        {% if claim.is_open and claim.status != "approved" %}<button class="btn secondary" name="action" value="reject">Reject</button>{% endif %}
+      </div>
+      {% if claim.status == "verifying" %}<p class="muted">Waiting for the claimant to answer the verification questions.</p>{% endif %}
+    </form>
+
+    {% if claim.status == "approved" %}
+      {% if handover and handover.status == "scheduled" %}
+        <div class="card"><h2>Handover scheduled</h2><p>{{ handover.scheduled_for|date:"D d M, H:i" }} at {{ handover.location.full_name }}</p>
+          <a class="btn" href="{% url 'dashboard:desk_handover' handover.pk %}">Perform handover</a></div>
+      {% else %}
+        <form method="post" class="card">{% csrf_token %}
+          <h2>Schedule handover</h2>
+          <div class="grid grid-2">{% for f in schedule_form %}<div class="field"><label>{{ f.label }}</label>{{ f }}{{ f.errors }}</div>{% endfor %}</div>
+          <button class="btn" name="action" value="schedule">Schedule &amp; send code to claimant</button>
+        </form>
+      {% endif %}
+    {% endif %}
+  </div>
+  <aside>
+    <div class="card"><h3>Other claims on this item</h3>
+      {% for c in competing %}<p><a href="{% url 'dashboard:desk_claim' c.pk %}">#{{ c.pk }} {{ c.claimant }}</a> – {{ c.get_status_display }}</p>
+      {% empty %}<p class="muted">None.</p>{% endfor %}
+      {% if competing %}<p class="muted" style="font-size:.85rem">Approving one claim automatically rejects the others.</p>{% endif %}
+    </div>
+  </aside>
+</div>
+{% endblock %}
